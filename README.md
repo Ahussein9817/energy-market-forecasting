@@ -178,3 +178,8 @@ MIT License - feel free to use this code for your own research and projects.
 # energy-market-forecasting
 Time-series forecasting of electricity prices with analysis of exogenous shocks
 >>>>>>> 94301f29fade533abb4ffc74de6127e3c0c6e16c
+
+## Recent Updates
+- Added initial EDA notebook (Dec 2024)
+- Exploring baseline forecasting approaches
+
