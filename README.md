@@ -1,3 +1,4 @@
+
 # Energy Market Price Forecasting Under Exogenous Shocks
 
 **Status:** Work in Progress  
@@ -173,3 +174,7 @@ aminaali9816@gmail.com | [LinkedIn](https://linkedin.com/in/amina-ali-hussein) |
 ## License
 
 MIT License - feel free to use this code for your own research and projects.
+
+# energy-market-forecasting
+Time-series forecasting of electricity prices with analysis of exogenous shocks
+>>>>>>> 94301f29fade533abb4ffc74de6127e3c0c6e16c
