@@ -16,7 +16,29 @@ What exists in this repository:
 - `notebooks/02_feature_engineering.ipynb`: empty placeholder.
 - **Real-data foundation (added 2026-11-11):** `src/data_loader.py` and `scripts/build_dataset.py` download NYISO day-ahead zonal prices and integrated load plus Open-Meteo temperature for 2019-2024 (no API keys), with DST-safe UTC timestamps. Measured result (`docs/data-quality-report.md`): 52,608 hourly rows per zone for each series, no missing hours, no duplicates, 15 price zones (789,120 price rows) and 11 load zones (578,688 load rows). Sources, caveats and the move from PJM to NYISO are in `docs/data-sources.md`. 12 unit tests cover the parsers (including both DST transitions), retry/caching and weather parsing.
 
-What does **not** exist: natural-gas data, any model (baseline or otherwise), any backtest, any evaluation metric, any result. The data is NYISO (not PJM as originally planned) and the data pipeline exists; everything about modelling below describes intended work. The files listed under "Repository Structure" that are not in the repo (`src/data_loader.py`, `preprocessing.py`, `models.py`, `evaluation.py`, `visualization.py`, notebooks 03-05) have not been written.
+- **Forecasting backtest (added 2026-11-11):** walk-forward day-ahead forecasts for the N.Y.C. zone over 2023-01-01 to 2024-12-30 (730 days, 17,520 hourly points) from two naive benchmarks, SARIMAX and XGBoost; results below and in `results/backtest_report.md`.
+
+What does **not** exist: natural-gas data, LSTM or other deep models, any causal or shock analysis, any live or trading use. The data is NYISO (not PJM as originally planned) and the data pipeline exists; everything about modelling below describes intended work. The files listed under "Repository Structure" that are not in the repo (`src/data_loader.py`, `preprocessing.py`, `models.py`, `evaluation.py`, `visualization.py`, notebooks 03-05) have not been written.
+
+## Backtest results (NYISO N.Y.C. zone, day-ahead price, 2023-2024)
+
+Setup (fixed before looking at test results; code in `scripts/run_backtest.py`, tests in `tests/test_modeling.py`): at the end of day D forecast the 24 hourly day-ahead prices of D+1 using data up to D; XGBoost hyperparameters picked on 2022 only and then frozen; XGBoost refit each quarter on all earlier days; SARIMAX(1,0,1)(1,0,1,24) refit every day on the trailing 56 days. A leakage test asserts that features for a target day do not change when all prices and loads from that day onward are altered. Metrics are MAE/RMSE in $/MWh (no MAPE: low prices make it unstable), with Diebold-Mariano tests on daily losses.
+
+| Model | MAE | RMSE | note |
+|---|---|---|---|
+| Same hour last week (168 h) | 13.26 | 31.73 | weak benchmark here |
+| **Same hour yesterday (24 h)** | **6.03** | 13.55 | strongest simple benchmark |
+| SARIMAX | 6.47 | 13.02 | slightly worse MAE, best RMSE among non-oracle models |
+| XGBoost, prices + calendar | 6.13 | 13.51 | no better than yesterday-naive (DM p=0.78) |
+| XGBoost, + load lags | 6.08 | 13.35 | no better than yesterday-naive (DM p=0.89) |
+| XGBoost, + **actual** target-day temperature | 5.02 | 11.04 | 17% lower MAE than yesterday-naive (DM p<0.001), but uses a perfect-foresight weather forecast |
+
+What this does and does not show:
+- Without information about the target day, the models did **not** beat "same hour yesterday" on MAE. The only clear gain comes from feeding in the target day's actual temperature; a real weather forecast would give a smaller gain, which was not measured.
+- Every model badly under-forecasts price spikes (bias of -24 to -36 $/MWh in the top 5% of hours), and the first quarters of each year are the hardest (winter volatility).
+- No natural-gas, generation-mix or outage data is used; those are the main known drivers and would be the next thing to add. One zone, one 2-year window, day-ahead prices only.
+- The metrics are regenerable from the committed predictions with `python scripts/evaluate_predictions.py` (verified identical to the saved metrics). The full backtest was run once (about 39 minutes); re-running it from scratch to confirm identical predictions has not been done. Run metadata (package versions, data checksums, tuning grid, git commit) is in `results/run_metadata.json`.
+- Not a trading result and no claim of trading experience: this is a retrospective forecast evaluation.
 
 ## Project Overview
 
@@ -117,7 +139,7 @@ energy-market-forecasting/
 ### In Progress
 - [ ] Data collection and cleaning pipeline
 - [ ] Feature engineering (lagged variables, rolling statistics, weather integration)
-- [ ] Baseline model implementation (ARIMA, SARIMAX)
+- [x] Baseline model implementation (naive, SARIMAX) and XGBoost, with walk-forward backtest (see Backtest results)
 
 ###  Upcoming
 - [ ] Machine learning model development (XGBoost, Random Forest)

@@ -1,8 +1,11 @@
-# Tested on Python 3.12 (2026-11-11). Add modelling libraries when the code that needs them lands.
+# Tested on Python 3.12 (2026-11-11).
 pandas==3.1.1
 numpy==2.5.4
+scipy==1.18.1
+scikit-learn==1.9.1
+xgboost==3.4.1
+statsmodels==0.15.0
 requests==2.34.2
 pyarrow==26.0.1
 matplotlib==3.11.2
-seaborn
-jupyter
+# notebooks only (not pinned/tested): seaborn, jupyter
