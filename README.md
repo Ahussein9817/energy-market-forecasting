@@ -1,11 +1,21 @@
 
 # Energy Market Price Forecasting Under Exogenous Shocks
 
-**Status:** Work in Progress  
-**Timeline:** June 2024 - Present  
+**Status:** Early planning stage. No forecasting models, real data or results exist yet (see "Current state").  
+**Timeline:** Repository created 2025-12-22 (git history); earlier dates in the notebook and a previous README version were not backed by commits.  
 **Goal:** Build time-series forecasting models to predict electricity price volatility and analyze the causal impact of exogenous shocks (weather extremes, geopolitical events, supply disruptions) on energy markets.
 
 ---
+
+
+## Current state (verified 2026-11-11)
+
+What exists in this repository:
+- This plan, a folder skeleton, and a dependency list.
+- `notebooks/01_data_exploration.ipynb`: exploratory analysis on a **synthetic, `np.random`-generated price series**. No saved outputs. It tells us nothing about real electricity markets.
+- `notebooks/02_feature_engineering.ipynb`: empty placeholder.
+
+What does **not** exist: real price/weather/demand data, any data loader, any model (baseline or otherwise), any backtest, any evaluation metric, any result. Everything below this section describes intended work. The files listed under "Repository Structure" that are not in the repo (`src/data_loader.py`, `preprocessing.py`, `models.py`, `evaluation.py`, `visualization.py`, notebooks 03-05) have not been written.
 
 ## Project Overview
 
@@ -101,7 +111,7 @@ energy-market-forecasting/
 - [x] Literature review on energy price forecasting methods
 - [x] Identified primary data sources (EIA, NOAA)
 - [x] Set up repository structure
-- [x] Initial exploratory data analysis on historical prices
+- [x] Exploratory-analysis scaffolding on synthetic data (not historical prices)
 
 ### In Progress
 - [ ] Data collection and cleaning pipeline
@@ -127,7 +137,7 @@ energy-market-forecasting/
 ### Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/energy-market-forecasting.git
+git clone https://github.com/Ahussein9817/energy-market-forecasting.git
 cd energy-market-forecasting
 
 # Install dependencies
@@ -146,13 +156,9 @@ Data files are not included in this repository due to size. To replicate:
 
 ---
 
-## Key Findings (Preliminary)
+## Key Findings
 
-*This section will be updated as the project progresses with key insights and model results.*
-
-- Initial EDA shows strong seasonality in electricity prices (summer/winter peaks)
-- High correlation between natural gas prices and electricity prices (r > 0.7)
-- Weather variables (temperature extremes) show significant impact on price volatility
+None yet. Earlier versions of this README listed expected relationships (seasonality, gas-price correlation, weather effects) as preliminary findings; no code or data in this repository computed them, so they were removed. They are hypotheses to test once real data is loaded.
 
 ---
 
@@ -174,12 +180,3 @@ aminaali9816@gmail.com | [LinkedIn](https://linkedin.com/in/amina-ali-hussein) |
 ## License
 
 MIT License - feel free to use this code for your own research and projects.
-
-# energy-market-forecasting
-Time-series forecasting of electricity prices with analysis of exogenous shocks
->>>>>>> 94301f29fade533abb4ffc74de6127e3c0c6e16c
-
-## Recent Updates
-- Added initial EDA notebook (Dec 2024)
-- Exploring baseline forecasting approaches
-
