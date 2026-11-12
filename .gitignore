@@ -33,3 +33,10 @@ Thumbs.db
 # Model outputs
 results/model_outputs/*
 !results/model_outputs/.gitkeep
+# downloaded public data (re-creatable with scripts/build_dataset.py)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+.coverage
+.ruff_cache/

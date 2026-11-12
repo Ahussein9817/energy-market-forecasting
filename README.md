@@ -1,7 +1,7 @@
 
 # Energy Market Price Forecasting Under Exogenous Shocks
 
-**Status:** Early planning stage. No forecasting models, real data or results exist yet (see "Current state").  
+**Status:** Early stage. A real-data ingestion pipeline (NYISO + weather) exists; no forecasting models or results exist yet (see "Current state").  
 **Timeline:** Repository created 2025-12-22 (git history); earlier dates in the notebook and a previous README version were not backed by commits.  
 **Goal:** Build time-series forecasting models to predict electricity price volatility and analyze the causal impact of exogenous shocks (weather extremes, geopolitical events, supply disruptions) on energy markets.
 
@@ -14,8 +14,9 @@ What exists in this repository:
 - This plan, a folder skeleton, and a dependency list.
 - `notebooks/01_data_exploration.ipynb`: exploratory analysis on a **synthetic, `np.random`-generated price series**. No saved outputs. It tells us nothing about real electricity markets.
 - `notebooks/02_feature_engineering.ipynb`: empty placeholder.
+- **Real-data foundation (added 2026-11-11):** `src/data_loader.py` and `scripts/build_dataset.py` download NYISO day-ahead zonal prices and integrated load plus Open-Meteo temperature for 2019-2024 (no API keys), with DST-safe UTC timestamps. Measured result (`docs/data-quality-report.md`): 52,608 hourly rows per zone for each series, no missing hours, no duplicates, 15 price zones (789,120 price rows) and 11 load zones (578,688 load rows). Sources, caveats and the move from PJM to NYISO are in `docs/data-sources.md`. 12 unit tests cover the parsers (including both DST transitions), retry/caching and weather parsing.
 
-What does **not** exist: real price/weather/demand data, any data loader, any model (baseline or otherwise), any backtest, any evaluation metric, any result. Everything below this section describes intended work. The files listed under "Repository Structure" that are not in the repo (`src/data_loader.py`, `preprocessing.py`, `models.py`, `evaluation.py`, `visualization.py`, notebooks 03-05) have not been written.
+What does **not** exist: natural-gas data, any model (baseline or otherwise), any backtest, any evaluation metric, any result. The data is NYISO (not PJM as originally planned) and the data pipeline exists; everything about modelling below describes intended work. The files listed under "Repository Structure" that are not in the repo (`src/data_loader.py`, `preprocessing.py`, `models.py`, `evaluation.py`, `visualization.py`, notebooks 03-05) have not been written.
 
 ## Project Overview
 

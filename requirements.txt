@@ -1,9 +1,8 @@
-# Trimmed 2026-11-11 to what the repository's code actually imports (the only
-# code is notebooks/01_data_exploration.ipynb). The earlier file listed
-# statsmodels, xgboost, tensorflow, torch, shap, etc. for models that have not
-# been written; add each dependency when the code that needs it lands.
-pandas
-numpy
-matplotlib
+# Tested on Python 3.12 (2026-11-11). Add modelling libraries when the code that needs them lands.
+pandas==3.1.1
+numpy==2.5.4
+requests==2.34.2
+pyarrow==26.0.1
+matplotlib==3.11.2
 seaborn
 jupyter
