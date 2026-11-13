@@ -28,3 +28,42 @@ jobs:
         run: |
           python -m energy_service db-init
           python -m energy_service status
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit==2.10.1
+      - name: No credentials in tracked files
+        run: python scripts/check_secrets.py
+      - name: Pinned dependencies have no known vulnerabilities
+        run: pip-audit -r requirements.txt --progress-spinner off
+
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      ENERGY_SCHEDULER_CATCHUP: "false"   # no live network calls from the scheduler in CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the image and start the stack (waits for health checks)
+        run: docker compose up -d --build --wait
+      - name: Load SYNTHETIC demo data
+        run: docker compose run --rm api python -m energy_service demo-seed
+      - name: Verify the running service
+        run: |
+          pip install httpx==0.28.1
+          python scripts/verify_deployment.py --api-url http://localhost:8000 --dashboard-url http://localhost:8501
+      - name: Container state and logs
+        if: always()
+        run: |
+          docker compose ps
+          docker compose logs --tail=40
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

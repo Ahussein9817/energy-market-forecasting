@@ -1,7 +1,7 @@
 PY ?= python
 export ENERGY_DB_PATH ?= data/energy.sqlite
 
-.PHONY: setup test lint regenerate db-init backfill ingest forecast evaluate status run-daily api
+.PHONY: setup test lint regenerate db-init backfill ingest forecast evaluate status monitor run-daily schedule api dashboard backup docker-up docker-down verify
 
 setup:            ## install pinned dependencies and the package (editable)
 	$(PY) -m pip install -r requirements.txt -r requirements-dev.txt
@@ -36,8 +36,29 @@ evaluate:
 status:
 	$(PY) -m energy_service status
 
-run-daily:        ## what a scheduler runs once per morning: ingest, weather snapshot, forecast, evaluate
+monitor:          ## health checks; stores a snapshot and emits events/alerts for changes
+	$(PY) -m energy_service monitor
+
+run-daily:        ## what a scheduler runs once per morning: ingest, weather snapshot, forecast, evaluate, monitor
 	$(PY) -m energy_service run-daily
 
 api:              ## read-only API on http://127.0.0.1:8000 (docs at /docs)
 	$(PY) -m energy_service serve
+
+dashboard:        ## http://127.0.0.1:8501 (read-only view of the database)
+	streamlit run dashboard/app.py
+
+schedule:         ## long-running scheduler (05:00 and 09:45 ET by default; catches up after downtime)
+	$(PY) -m energy_service schedule
+
+backup:           ## BACKUP_FILE=backups/energy.sqlite make backup
+	$(PY) -m energy_service backup --out $(BACKUP_FILE)
+
+docker-up:        ## local containers (api, dashboard, scheduler); see docs/RUNBOOK.md
+	docker compose up -d --build --wait
+
+docker-down:
+	docker compose down
+
+verify:           ## smoke-test a running service
+	$(PY) scripts/verify_deployment.py --api-url http://localhost:8000

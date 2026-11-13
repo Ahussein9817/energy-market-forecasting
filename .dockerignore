@@ -1,0 +1,15 @@
+.git
+.github
+envs
+data
+models
+notebooks
+tests
+docs
+*.egg-info
+__pycache__
+.pytest_cache
+.ruff_cache
+.env
+results/*.parquet
+results/figures

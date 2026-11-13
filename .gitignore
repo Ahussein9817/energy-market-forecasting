@@ -42,8 +42,10 @@ data/processed/*
 .ruff_cache/
 
 # operational service state (local; regenerate with the CLI)
-data/energy.sqlite*
+data/*.sqlite*
 models/*
 !models/.gitkeep
 
 *.egg-info/
+
+.env

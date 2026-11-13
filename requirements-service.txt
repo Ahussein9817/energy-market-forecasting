@@ -1,0 +1,13 @@
+# Runtime dependencies of the operational service (API, scheduler/jobs, dashboard). Same pins as requirements.txt;
+# the research-only packages (statsmodels, matplotlib) are not needed here (scipy arrives transitively). Verified in a fresh virtualenv (docs/operational-service.md).
+pandas==3.1.1
+numpy==2.5.4
+scikit-learn==1.9.1
+xgboost==3.4.1
+joblib==1.6.0
+requests==2.34.2
+fastapi==0.162.5
+uvicorn==0.54.0
+pydantic==2.14.3
+streamlit==1.67.0
+tzdata==2026.6
