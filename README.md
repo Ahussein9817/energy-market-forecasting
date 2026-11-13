@@ -223,7 +223,7 @@ What it does and does not do:
 - **API:** `/health`, `/ready` (503 with reasons when prices are stale), `/models`, `/forecasts/latest`, `/forecasts`, `/monitoring/summary` change nothing. `POST /admin/forecasts/generate` creates a forecast, is disabled unless `ENERGY_API_KEY` is set, needs the `X-API-Key` header, is rate-limited, and accepts only today or yesterday as origin. No request trains a model.
 - **Dashboard** (Streamlit, read-only): tomorrow's forecast with provenance and fallback/late banners; baseline vs model performance, error by hour and over time, price spikes (with a warning when fewer than 10 days are scored); data health and recent jobs; and a per-day investigation view.
 - **Operations:** a scheduler (05:00 and 09:45 ET, DST-safe, with catch-up after downtime), backup/restore, JSON logs with secret redaction, a deployment verification script, and CI jobs for tests, regeneration, secrets, dependency audit and a Docker build-and-verify.
-- **Limits:** one live forecast has been scored (n=1), so there is **no live performance claim**; the Docker files were written without Docker available and are verified only by the CI `docker` job; ports are local-only with no TLS or read authentication; no hosted deployment; one zone and a short operating history. It is not a production system.
+- **Limits:** one live forecast has been scored (n=1), so there is **no live performance claim**; the Docker files are verified by the CI `docker` job (build, health checks, verification script) but have not been run on the author's own machine; ports are local-only with no TLS or read authentication; no hosted deployment; one zone and a short operating history. It is not a production system.
 
 ---
 

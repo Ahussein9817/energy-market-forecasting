@@ -26,7 +26,7 @@ docker compose run --rm api python -m energy_service demo-seed        # SYNTHETI
 python scripts/verify_deployment.py --api-url http://localhost:8000 --dashboard-url http://localhost:8501
 docker compose down            # keeps the volume;  `down -v` deletes the data
 ```
-The Dockerfile and compose file were written on a machine without Docker; the CI `docker` job is what builds and smoke-tests them. Check that job before relying on them.
+The Dockerfile and compose file were written on a machine without Docker. The CI `docker` job builds the image, starts the stack, waits for every health check and runs `verify_deployment.py` (first green run: 2026-11-13); that is the evidence they work. They have not been run on the author's own machine.
 
 ## 2. What runs when
 
