@@ -1,0 +1,351 @@
+{
+  "probed_at_utc": "2026-11-13T05:43:37.144135+00:00",
+  "daily": [
+    {
+      "delivery_date": "2026-11-14",
+      "dam_price": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      },
+      "load_forecast": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      },
+      "actual_load": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      }
+    },
+    {
+      "delivery_date": "2026-11-13",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-12T14:33:03+00:00",
+        "last_modified_et": "2026-11-12 09:33 EST",
+        "et_clock": "09:33"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-12T12:34:40+00:00",
+        "last_modified_et": "2026-11-12 07:34 EST",
+        "et_clock": "07:34"
+      },
+      "actual_load": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      }
+    },
+    {
+      "delivery_date": "2026-11-12",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-11T14:32:25+00:00",
+        "last_modified_et": "2026-11-11 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-11T14:00:05+00:00",
+        "last_modified_et": "2026-11-11 09:00 EST",
+        "et_clock": "09:00"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-13T05:19:01+00:00",
+        "last_modified_et": "2026-11-13 00:19 EST",
+        "et_clock": "00:19"
+      }
+    },
+    {
+      "delivery_date": "2026-11-11",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-10T14:33:03+00:00",
+        "last_modified_et": "2026-11-10 09:33 EST",
+        "et_clock": "09:33"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-10T12:15:06+00:00",
+        "last_modified_et": "2026-11-10 07:15 EST",
+        "et_clock": "07:15"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-12T17:25:04+00:00",
+        "last_modified_et": "2026-11-12 12:25 EST",
+        "et_clock": "12:25"
+      }
+    },
+    {
+      "delivery_date": "2026-11-10",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-09T14:32:05+00:00",
+        "last_modified_et": "2026-11-09 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-09T13:55:05+00:00",
+        "last_modified_et": "2026-11-09 08:55 EST",
+        "et_clock": "08:55"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-11T05:32:03+00:00",
+        "last_modified_et": "2026-11-11 00:32 EST",
+        "et_clock": "00:32"
+      }
+    },
+    {
+      "delivery_date": "2026-11-09",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-08T14:32:04+00:00",
+        "last_modified_et": "2026-11-08 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-08T12:15:07+00:00",
+        "last_modified_et": "2026-11-08 07:15 EST",
+        "et_clock": "07:15"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-10T05:30:06+00:00",
+        "last_modified_et": "2026-11-10 00:30 EST",
+        "et_clock": "00:30"
+      }
+    },
+    {
+      "delivery_date": "2026-11-08",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-07T14:33:02+00:00",
+        "last_modified_et": "2026-11-07 09:33 EST",
+        "et_clock": "09:33"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-07T13:00:09+00:00",
+        "last_modified_et": "2026-11-07 08:00 EST",
+        "et_clock": "08:00"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-09T05:40:03+00:00",
+        "last_modified_et": "2026-11-09 00:40 EST",
+        "et_clock": "00:40"
+      }
+    },
+    {
+      "delivery_date": "2026-11-07",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-06T14:32:06+00:00",
+        "last_modified_et": "2026-11-06 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-06T13:45:05+00:00",
+        "last_modified_et": "2026-11-06 08:45 EST",
+        "et_clock": "08:45"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-08T05:40:05+00:00",
+        "last_modified_et": "2026-11-08 00:40 EST",
+        "et_clock": "00:40"
+      }
+    },
+    {
+      "delivery_date": "2026-11-06",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-05T14:32:03+00:00",
+        "last_modified_et": "2026-11-05 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-05T12:20:11+00:00",
+        "last_modified_et": "2026-11-05 07:20 EST",
+        "et_clock": "07:20"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-07T05:52:03+00:00",
+        "last_modified_et": "2026-11-07 00:52 EST",
+        "et_clock": "00:52"
+      }
+    },
+    {
+      "delivery_date": "2026-11-05",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-04T14:32:05+00:00",
+        "last_modified_et": "2026-11-04 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-04T12:30:08+00:00",
+        "last_modified_et": "2026-11-04 07:30 EST",
+        "et_clock": "07:30"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-06T05:19:01+00:00",
+        "last_modified_et": "2026-11-06 00:19 EST",
+        "et_clock": "00:19"
+      }
+    },
+    {
+      "delivery_date": "2026-11-04",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-03T14:32:04+00:00",
+        "last_modified_et": "2026-11-03 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-03T12:35:03+00:00",
+        "last_modified_et": "2026-11-03 07:35 EST",
+        "et_clock": "07:35"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-05T05:18:02+00:00",
+        "last_modified_et": "2026-11-05 00:18 EST",
+        "et_clock": "00:18"
+      }
+    },
+    {
+      "delivery_date": "2026-11-03",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-02T14:32:05+00:00",
+        "last_modified_et": "2026-11-02 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-02T12:25:04+00:00",
+        "last_modified_et": "2026-11-02 07:25 EST",
+        "et_clock": "07:25"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-04T05:17:01+00:00",
+        "last_modified_et": "2026-11-04 00:17 EST",
+        "et_clock": "00:17"
+      }
+    },
+    {
+      "delivery_date": "2026-11-02",
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-01T14:32:06+00:00",
+        "last_modified_et": "2026-11-01 09:32 EST",
+        "et_clock": "09:32"
+      },
+      "load_forecast": {
+        "status": 200,
+        "last_modified_utc": "2026-11-01T12:55:05+00:00",
+        "last_modified_et": "2026-11-01 07:55 EST",
+        "et_clock": "07:55"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-03T05:28:01+00:00",
+        "last_modified_et": "2026-11-03 00:28 EST",
+        "et_clock": "00:28"
+      }
+    },
+    {
+      "delivery_date": "2026-11-01",
+      "dam_price": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      },
+      "load_forecast": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      },
+      "actual_load": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      }
+    },
+    {
+      "delivery_date": "2026-10-31",
+      "dam_price": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      },
+      "load_forecast": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      },
+      "actual_load": {
+        "status": 404,
+        "last_modified_utc": null,
+        "last_modified_et": null,
+        "et_clock": null
+      }
+    }
+  ],
+  "monthly_zips": {
+    "2026-11": {
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-11-12T14:33:07+00:00",
+        "last_modified_et": "2026-11-12 09:33 EST",
+        "et_clock": "09:33"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-13T05:19:02+00:00",
+        "last_modified_et": "2026-11-13 00:19 EST",
+        "et_clock": "00:19"
+      }
+    },
+    "2026-10": {
+      "dam_price": {
+        "status": 200,
+        "last_modified_utc": "2026-10-30T13:56:07+00:00",
+        "last_modified_et": "2026-10-30 09:56 EDT",
+        "et_clock": "09:56"
+      },
+      "actual_load": {
+        "status": 200,
+        "last_modified_utc": "2026-11-01T04:34:02+00:00",
+        "last_modified_et": "2026-11-01 00:34 EDT",
+        "et_clock": "00:34"
+      }
+    }
+  },
+  "note": "Last-Modified is the latest revision time, an upper bound on first posting."
+}

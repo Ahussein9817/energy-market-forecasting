@@ -158,3 +158,49 @@ def test_default_walk_forward_is_unchanged_without_new_arguments(monkeypatch):
     d0 = seen[0].index.get_level_values("date")
     assert len(seen[0]) == int((X_all.index.get_level_values("date") < pd.Timestamp("2023-03-01")).sum())
     assert d0.max() < pd.Timestamp("2023-03-01")
+
+
+# ---- operational feature sets (origin 05:00 ET on D, target D+1) --------------------------------
+@pytest.mark.parametrize("fs", ["OB", "OD"])
+def test_operational_sets_do_not_use_day_D_load_or_temperature_or_target_prices(fs):
+    p = _panels(n=70)
+    X0, _ = ft.make_features(p, fs)
+    T = pd.Timestamp("2023-02-15")
+    D = T - pd.Timedelta(days=1)
+    changed = {k: v.copy() for k, v in p.items()}
+    changed["load"].loc[changed["load"].index >= D] += 1000.0     # load of D and later is unknown
+    changed["temp"].loc[changed["temp"].index >= D] += 500.0      # observed temperature of D and later
+    changed["price"].loc[changed["price"].index >= T] += 1000.0   # prices of the target day and later
+    X1, _ = ft.make_features(changed, fs)
+    a, b = (X[X.index.get_level_values("date") == T] for X in (X0, X1))
+    assert len(a) == 24
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_operational_sets_columns_and_forecast_requirement():
+    p = _panels(n=70)
+    XB, _ = ft.make_features(p, "OB")
+    XD, _ = ft.make_features(p, "OD")
+    assert {"load_d2", "load_d7"} <= set(XB.columns) and "load_d1" not in XB.columns
+    assert "temp_d1" not in XD.columns and "temp_t" not in XD.columns and "temp_fc_t" in XD.columns
+    assert "temp_fc_t" not in XB.columns
+    del p["temp_fc"]
+    with pytest.raises(ValueError, match="temp_fc"):
+        ft.make_features(p, "OD")
+
+
+def test_operational_set_uses_price_of_day_D_as_lag_one():
+    p = _panels(n=70)
+    X, _ = ft.make_features(p, "OB")
+    T = pd.Timestamp("2023-02-15")
+    assert X.loc[(T, 9), "p_d1"] == p["price"].loc[T - pd.Timedelta(days=1), 9]   # price of D is public at 09:32 on D-1
+    assert X.loc[(T, 9), "load_d2"] == p["load"].loc[T - pd.Timedelta(days=2), 9]  # load of D-1
+
+
+def test_block_bootstrap_ci_is_deterministic_and_brackets_the_mean():
+    d = np.r_[np.full(60, -1.0), np.full(60, -0.5)] + np.random.default_rng(1).normal(0, 0.2, 120)
+    a, b = ev.block_bootstrap_ci(d, seed=3), ev.block_bootstrap_ci(d, seed=3)
+    assert a == b
+    assert a["lo"] < a["mean"] < a["hi"] and a["hi"] < 0   # clearly negative mean
+    z = ev.block_bootstrap_ci(np.zeros(50))
+    assert z["lo"] == z["hi"] == 0.0

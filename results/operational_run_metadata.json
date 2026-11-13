@@ -1,0 +1,107 @@
+{
+  "protocol": "see scripts/run_operational_backtest.py docstring",
+  "zone": "N.Y.C.",
+  "origin": "05:00 America/New_York on day D",
+  "weather_model": "gfs_global",
+  "weather_lead_days": 2,
+  "test_start": "2023-01-01",
+  "test_end": "2024-12-30",
+  "n_test_days": 730,
+  "excluded_days_missing_forecast": [
+    "2023-12-29",
+    "2023-12-30",
+    "2023-12-31",
+    "2024-01-01",
+    "2024-01-02",
+    "2024-01-03",
+    "2024-01-04",
+    "2024-01-05",
+    "2024-01-06",
+    "2024-01-07",
+    "2024-01-08",
+    "2024-01-09",
+    "2024-01-10",
+    "2024-01-11",
+    "2024-01-12",
+    "2024-01-13",
+    "2024-01-14",
+    "2024-01-15",
+    "2024-01-16",
+    "2024-01-17",
+    "2024-01-18",
+    "2024-01-19",
+    "2024-01-20"
+  ],
+  "n_excluded_days": 23,
+  "chosen_params": {
+    "OB": {
+      "max_depth": 4,
+      "n_estimators": 300
+    },
+    "OD": {
+      "max_depth": 4,
+      "n_estimators": 300
+    }
+  },
+  "tuning_grid_results_2022": {
+    "OB": [
+      {
+        "max_depth": 4,
+        "n_estimators": 300,
+        "val_MAE_2022": 16.59108787497429
+      },
+      {
+        "max_depth": 4,
+        "n_estimators": 600,
+        "val_MAE_2022": 16.886648250719183
+      },
+      {
+        "max_depth": 6,
+        "n_estimators": 300,
+        "val_MAE_2022": 16.74311164704414
+      },
+      {
+        "max_depth": 6,
+        "n_estimators": 600,
+        "val_MAE_2022": 16.981379671297116
+      }
+    ],
+    "OD_train_actual": [
+      {
+        "max_depth": 4,
+        "n_estimators": 300,
+        "val_MAE_2022": 15.873946940348029
+      },
+      {
+        "max_depth": 4,
+        "n_estimators": 600,
+        "val_MAE_2022": 15.971735445458052
+      },
+      {
+        "max_depth": 6,
+        "n_estimators": 300,
+        "val_MAE_2022": 15.970112200950377
+      },
+      {
+        "max_depth": 6,
+        "n_estimators": 600,
+        "val_MAE_2022": 16.034331744529343
+      }
+    ]
+  },
+  "matched_window_train_days": 1357,
+  "weather_files_sha256": {
+    "gfs_previous_day2_2021-01-01_2021-12-31.parquet": "f2d52c5d219caddd3be9cc245905b04901e72a8db082ef0c3819e8586865b9ba",
+    "gfs_previous_day2_2022-01-01_2022-12-31.parquet": "07ccbfe4e1f421e8e1904b50ae383dddefb972da36c167b7aa6c3d89cea8509e",
+    "gfs_previous_day2_2023-01-01_2023-12-31.parquet": "fb494134bd37833372aa542ab7ec24838ccfab5f2d7e1e4d8702a2050aba41b2",
+    "gfs_previous_day2_2024-01-01_2024-12-31.parquet": "f994901134bb124cc43bcfe82e86945b4b9d804efba42b6630d36f7233521c95"
+  },
+  "data_sha256": {
+    "nyc_temperature.parquet": "f2e01d55d4329435bc47886c3bbde45215367765e6b26ea4f4ba7296421e75ee",
+    "nyiso_dam_lbmp.parquet": "c36c266c46cad84ef5727a7fd918eab1a1f40c03142d4f6e7d9753476257ddc4",
+    "nyiso_load.parquet": "d803d35965c00e5219f5c0556772a38246c1f9a0358427b882965b303df733b4"
+  },
+  "git_commit": "30114aab85f83737af833aa04d8cadfdb111f0f1",
+  "python": "3.12.16",
+  "runtime_seconds": 24
+}

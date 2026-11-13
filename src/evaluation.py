@@ -55,6 +55,21 @@ def daily_loss(frame: pd.DataFrame, col: str, loss: str = "abs") -> np.ndarray:
     return e.groupby(level="date").mean().sort_index().to_numpy()
 
 
+def block_bootstrap_ci(d, block: int = 7, n_boot: int = 2000, seed: int = 0, alpha: float = 0.05):
+    """Circular moving-block bootstrap CI for the mean of a daily series `d` (e.g. the daily MAE
+    difference model - baseline). Blocks keep serial correlation. Deterministic for a given seed."""
+    d = np.asarray(d, float)
+    n = len(d)
+    block = max(1, min(block, n))
+    rng = np.random.default_rng(seed)
+    n_blocks = -(-n // block)
+    starts = rng.integers(0, n, size=(n_boot, n_blocks))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]) % n
+    means = d[idx.reshape(n_boot, -1)[:, :n]].mean(axis=1)
+    lo, hi = np.quantile(means, [alpha / 2, 1 - alpha / 2])
+    return {"mean": float(d.mean()), "lo": float(lo), "hi": float(hi), "n": n, "block": block, "n_boot": n_boot}
+
+
 def quarter_starts(start: str, end: str) -> list[pd.Timestamp]:
     return list(pd.date_range(start, end, freq="QS"))
 
