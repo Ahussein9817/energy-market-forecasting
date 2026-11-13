@@ -7,13 +7,17 @@ advance. `temp_t` is the temperature OF THE TARGET DAY taken from historical act
 i.e. a perfect-foresight weather forecast: an optimistic assumption, so it lives in its
 own feature set ('C') and results with it must be labelled as such.
 
-Feature sets: A = prices + calendar; B = A + load lags; C = B + temperature (oracle).
+Feature sets: A = prices + calendar; B = A + load lags; C = B + temperature (oracle);
+D = B + day-ahead FORECAST temperature of the target day (`panels["temp_fc"]`, issued a fixed
+number of days before the valid time) + the observed temperature of day D. D is the operational
+weather set; its `temp_fc_t` column may be NaN where the archived forecast is missing, and such
+rows are dropped (never filled).
 """
 
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
 
-FEATURE_SETS = ("A", "B", "C")
+FEATURE_SETS = ("A", "B", "C", "D")
 
 
 def _long(frame: pd.DataFrame, name: str) -> pd.Series:
@@ -27,6 +31,8 @@ def make_features(panels: dict[str, pd.DataFrame], feature_set: str):
     if feature_set not in FEATURE_SETS:
         raise ValueError(f"feature_set must be one of {FEATURE_SETS}")
     price, load, temp = panels["price"], panels["load"], panels["temp"]
+    if feature_set == "D" and "temp_fc" not in panels:
+        raise ValueError("feature set D needs panels['temp_fc'] (day-ahead forecast temperature)")
     if not (price.index.is_monotonic_increasing and (price.index.to_series().diff().dropna() == pd.Timedelta(days=1)).all()):
         raise ValueError("panel must have contiguous, sorted daily index")
 
@@ -37,12 +43,15 @@ def make_features(panels: dict[str, pd.DataFrame], feature_set: str):
     prev = price.shift(1)  # day D
     for nm, ser in (("pD_mean", prev.mean(axis=1)), ("pD_max", prev.max(axis=1)), ("pD_min", prev.min(axis=1))):
         cols[nm] = _long(pd.DataFrame({h: ser for h in price.columns}), nm)
-    if feature_set in ("B", "C"):
+    if feature_set in ("B", "C", "D"):
         cols["load_d1"] = _long(load.shift(1), "load_d1")
         cols["load_d7"] = _long(load.shift(7), "load_d7")
     if feature_set == "C":
         cols["temp_t"] = _long(temp, "temp_t")            # target day: oracle weather
         cols["temp_d1"] = _long(temp.shift(1), "temp_d1")
+    if feature_set == "D":
+        cols["temp_fc_t"] = _long(panels["temp_fc"], "temp_fc_t")   # forecast for the target day
+        cols["temp_d1"] = _long(temp.shift(1), "temp_d1")           # observed on day D (known at origin)
     X = pd.concat(cols.values(), axis=1)
     dates = X.index.get_level_values("date")
     hol = USFederalHolidayCalendar().holidays(start=dates.min(), end=dates.max())

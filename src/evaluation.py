@@ -59,12 +59,27 @@ def quarter_starts(start: str, end: str) -> list[pd.Timestamp]:
     return list(pd.date_range(start, end, freq="QS"))
 
 
-def walk_forward_xgb(panels, feature_set, test_start, test_end, params=None, refit="QS"):
+def walk_forward_xgb(panels, feature_set, test_start, test_end, params=None, refit="QS",
+                     train_panels=None, train_dates=None):
     """Expanding-window walk-forward. For each refit block, train on ALL target days strictly
     before the block's first target day, then predict every day of the block. Returns a
-    Series indexed (date, hour). Model never sees any target of a day it predicts."""
+    Series indexed (date, hour). Model never sees any target of a day it predicts.
+
+    Optional, for the forecast-weather experiment (defaults reproduce the original behaviour):
+      train_panels: build the TRAINING rows from these panels instead (e.g. actual temperature in
+        the forecast column: "train on actuals, predict with forecasts"); prediction rows always
+        use `panels`.
+      train_dates: restrict training rows to these dates (e.g. a matched window)."""
     X, y = make_features(panels, feature_set)
     dates = X.index.get_level_values("date")
+    if train_panels is not None:
+        Xtr, ytr = make_features(train_panels, feature_set)
+    else:
+        Xtr, ytr = X, y
+    tr_dates = Xtr.index.get_level_values("date")
+    if train_dates is not None:
+        keep = tr_dates.isin(pd.DatetimeIndex(train_dates))
+        Xtr, ytr, tr_dates = Xtr[keep], ytr[keep], tr_dates[keep]
     test_days = pd.date_range(test_start, test_end, freq="D")
     starts = list(pd.date_range(test_start, test_end, freq=refit))
     if not starts or starts[0] != pd.Timestamp(test_start):
@@ -72,11 +87,11 @@ def walk_forward_xgb(panels, feature_set, test_start, test_end, params=None, ref
     preds = []
     for i, s in enumerate(starts):
         e = starts[i + 1] if i + 1 < len(starts) else test_days[-1] + pd.Timedelta(days=1)
-        tr = dates < s
+        tr = tr_dates < s
         te = (dates >= s) & (dates < e)
         if tr.sum() == 0 or te.sum() == 0:
             continue
-        model = fit_xgb(X[tr], y[tr], **(params or {}))
+        model = fit_xgb(Xtr[tr][list(X.columns)], ytr[tr], **(params or {}))
         preds.append(pd.Series(model.predict(X[te]), index=X.index[te], name=f"xgb_{feature_set}"))
     return pd.concat(preds)
 

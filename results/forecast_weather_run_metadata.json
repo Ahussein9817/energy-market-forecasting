@@ -1,0 +1,79 @@
+{
+  "protocol": "see scripts/run_forecast_weather.py docstring",
+  "zone": "N.Y.C.",
+  "weather_model": "gfs_global",
+  "test_start": "2023-01-01",
+  "test_end": "2024-12-30",
+  "n_test_days": 730,
+  "xgb_params_frozen_from_run_backtest": {
+    "max_depth": 4,
+    "n_estimators": 300
+  },
+  "excluded_days_missing_forecast": [
+    "2023-12-29",
+    "2023-12-30",
+    "2023-12-31",
+    "2024-01-01",
+    "2024-01-02",
+    "2024-01-03",
+    "2024-01-04",
+    "2024-01-05",
+    "2024-01-06",
+    "2024-01-07",
+    "2024-01-08",
+    "2024-01-09",
+    "2024-01-10",
+    "2024-01-11",
+    "2024-01-12",
+    "2024-01-13",
+    "2024-01-14",
+    "2024-01-15",
+    "2024-01-16",
+    "2024-01-17",
+    "2024-01-18",
+    "2024-01-19",
+    "2024-01-20"
+  ],
+  "n_excluded_days": 23,
+  "matched_window_train_days": 1359,
+  "weather": {
+    "previous_day1": {
+      "test_days_with_missing_forecast": 22,
+      "missing_day_first": "2023-12-29",
+      "missing_day_last": "2024-01-19",
+      "forecast_minus_actual_temp_C": {
+        "MAE": 1.7499588912379611,
+        "bias": 0.7543046746535118,
+        "RMSE": 2.240504524396923,
+        "n_hours": 17028
+      },
+      "files_sha256": {
+        "gfs_previous_day1_2021-01-01_2021-12-31.parquet": "77a62d6982dddc1ff16876ce36b46def602577b892ed8bd5bbebc035e1d243a5",
+        "gfs_previous_day1_2022-01-01_2022-12-31.parquet": "877aaca1265b202b187f66ef657caf9ec3292ec548fe19925c30aa0c731212e1",
+        "gfs_previous_day1_2023-01-01_2023-12-31.parquet": "e14d683100e1b89848080288a920acdfaa022e388913cd0585eee925fcfd622d",
+        "gfs_previous_day1_2024-01-01_2024-12-31.parquet": "d6520fc3319299ff796e31ce85e528c39f027c61df59e028a2f4e89386c81293"
+      }
+    },
+    "previous_day2": {
+      "test_days_with_missing_forecast": 23,
+      "missing_day_first": "2023-12-29",
+      "missing_day_last": "2024-01-20",
+      "forecast_minus_actual_temp_C": {
+        "MAE": 1.8521994824747121,
+        "bias": 0.7059280169371912,
+        "RMSE": 2.364130091917084,
+        "n_hours": 17004
+      },
+      "files_sha256": {
+        "gfs_previous_day2_2021-01-01_2021-12-31.parquet": "f2d52c5d219caddd3be9cc245905b04901e72a8db082ef0c3819e8586865b9ba",
+        "gfs_previous_day2_2022-01-01_2022-12-31.parquet": "07ccbfe4e1f421e8e1904b50ae383dddefb972da36c167b7aa6c3d89cea8509e",
+        "gfs_previous_day2_2023-01-01_2023-12-31.parquet": "fb494134bd37833372aa542ab7ec24838ccfab5f2d7e1e4d8702a2050aba41b2",
+        "gfs_previous_day2_2024-01-01_2024-12-31.parquet": "f994901134bb124cc43bcfe82e86945b4b9d804efba42b6630d36f7233521c95"
+      }
+    }
+  },
+  "git_commit": "0816a86ec16b22465c7d3d02f7d16a06703cea63",
+  "python": "3.12.16",
+  "committed_predictions_sha256": "3a2d8b7c32f04411f713a63e3923585c18afc66b439282553c0b2a0d1fe6f0bd",
+  "runtime_seconds": 15
+}

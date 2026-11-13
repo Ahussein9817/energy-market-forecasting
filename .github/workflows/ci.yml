@@ -18,3 +18,5 @@ jobs:
       - run: pytest -q  # offline: network calls are mocked
       - name: Metrics regenerate from the committed predictions (exits 1 if they differ)
         run: python scripts/evaluate_predictions.py
+      - name: Forecast-weather metrics regenerate from the committed predictions (exits 1 if they differ)
+        run: python scripts/evaluate_forecast_weather.py

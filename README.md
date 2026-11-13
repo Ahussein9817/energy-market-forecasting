@@ -34,7 +34,7 @@ Setup (fixed before looking at test results; code in `scripts/run_backtest.py`, 
 | XGBoost, + **actual** target-day temperature | 5.02 | 11.04 | 17% lower MAE than yesterday-naive (DM p<0.001), but uses a perfect-foresight weather forecast |
 
 What this does and does not show:
-- Without information about the target day, the models did **not** beat "same hour yesterday" on MAE. The only clear gain comes from feeding in the target day's actual temperature; a real weather forecast would give a smaller gain, which was not measured.
+- Without information about the target day, the models did **not** beat "same hour yesterday" on MAE. The only clear gain comes from feeding in the target day's actual temperature; whether a real weather forecast keeps that gain is measured in the next section.
 - Every model badly under-forecasts price spikes (bias of -24 to -36 $/MWh in the top 5% of hours), and the first quarters of each year are the hardest (winter volatility).
 - No natural-gas, generation-mix or outage data is used; those are the main known drivers and would be the next thing to add. One zone, one 2-year window, day-ahead prices only.
 - The metrics are regenerable from the committed predictions with `python scripts/evaluate_predictions.py` (verified identical to the saved metrics). The full backtest was run once (about 39 minutes); re-running it from scratch to confirm identical predictions has not been done. Run metadata (package versions, data checksums, tuning grid, git commit) is in `results/run_metadata.json`.
@@ -176,6 +176,27 @@ Data files are not included in this repository due to size. To replicate:
 2. Download NOAA weather data from: https://www.ncdc.noaa.gov/cdo-web/
 3. Place raw data in `data/raw/` directory
 4. Run preprocessing notebooks in order
+
+## Forecast-weather experiment (added 2026-11-12)
+
+The 5.02 MAE above uses perfect-foresight weather. This experiment replaces it with an archived **day-ahead forecast**: GFS 2 m temperature from the Open-Meteo Previous Runs API issued 1 day before the valid hour (a 2-day lead is the leakage-safe sensitivity, because the run initialisation time behind the 1-day value is undocumented). Same walk-forward protocol and the same frozen XGBoost hyperparameters (chosen on 2022 using the oracle feature set; not retuned). Code: `scripts/run_forecast_weather.py`, `src/forecast_weather.py`; report: `results/forecast_weather_report.md`; regenerate metrics with `python scripts/evaluate_forecast_weather.py`.
+
+23 test days (2023-12-29 to 2024-01-20) have missing forecast hours from one upstream outage; they are excluded for **every** model in the table (709 days remain, identical points for all models). Nothing is imputed.
+
+| Model (709 days) | MAE | RMSE | note |
+|---|---|---|---|
+| Same hour yesterday | 5.78 | 13.14 | reference |
+| XGBoost B, no weather (control, same training dates) | 6.14 | 13.00 | not better than yesterday-naive |
+| XGBoost + forecast temp (1-day lead), trained on actuals | 4.72 | 10.35 | 18% lower MAE than yesterday-naive (DM p<0.001) |
+| XGBoost + forecast temp (1-day lead), trained on forecasts | 5.35 | 10.76 | 8% lower MAE, not significant (DM p=0.12) |
+| XGBoost + forecast temp (2-day lead), trained on actuals | 4.71 | 10.33 | same as 1-day lead |
+| XGBoost + actual temp (oracle) | 4.77 | 10.43 | upper bound |
+
+What this shows and does not show:
+- With a real day-ahead forecast the weather-based model still beats "same hour yesterday" on this window, and the gap to the oracle is not statistically distinguishable here (DM p=0.44). The GFS forecast itself is close to the observed temperature (MAE 1.75 deg C, bias +0.75).
+- The gain depends on how the model is trained: training on actual temperature and predicting with the forecast did better than training only on the one to three years of archived forecasts, whose history is short (about 1,359 training days at most).
+- One zone, one weather point, GFS only, one 2-year window, one frozen hyperparameter set. No claim is made about why prices move, and no gas, outage or generation-mix data is used. Not a trading result.
+- Weather data by Open-Meteo.com (CC BY 4.0); raw responses are cached in the gitignored `data/external/` and are not committed.
 
 ---
 
