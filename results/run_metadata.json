@@ -1,0 +1,80 @@
+{
+  "protocol": "see scripts/run_backtest.py docstring",
+  "zone": "N.Y.C.",
+  "test_start": "2023-01-01",
+  "test_end": "2024-12-30",
+  "n_test_days": 730,
+  "sarimax_window_days": 56,
+  "sarimax_order": [
+    [
+      1,
+      0,
+      1
+    ],
+    [
+      1,
+      0,
+      1,
+      24
+    ]
+  ],
+  "sarimax_failures": {
+    "sarimax": 0,
+    "sarimax_x_oracle_temp": 0
+  },
+  "xgb_defaults": {
+    "n_estimators": 400,
+    "learning_rate": 0.05,
+    "max_depth": 6,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "min_child_weight": 5,
+    "tree_method": "hist",
+    "objective": "reg:squarederror",
+    "random_state": 42,
+    "n_jobs": 4
+  },
+  "tuning_grid_results_2022": [
+    {
+      "max_depth": 4,
+      "n_estimators": 300,
+      "val_MAE_2022": 15.139710846347898
+    },
+    {
+      "max_depth": 4,
+      "n_estimators": 600,
+      "val_MAE_2022": 15.425179923810918
+    },
+    {
+      "max_depth": 6,
+      "n_estimators": 300,
+      "val_MAE_2022": 15.725620380619342
+    },
+    {
+      "max_depth": 6,
+      "n_estimators": 600,
+      "val_MAE_2022": 15.813295298223627
+    }
+  ],
+  "chosen_params": {
+    "max_depth": 4,
+    "n_estimators": 300
+  },
+  "high_price_threshold_pre2023_p95": 111.84699999999997,
+  "data_sha256": {
+    "nyiso_dam_lbmp.parquet": "c36c266c46cad84ef5727a7fd918eab1a1f40c03142d4f6e7d9753476257ddc4",
+    "nyiso_load.parquet": "d803d35965c00e5219f5c0556772a38246c1f9a0358427b882965b303df733b4",
+    "nyc_temperature.parquet": "f2e01d55d4329435bc47886c3bbde45215367765e6b26ea4f4ba7296421e75ee"
+  },
+  "git_commit": "7bd23c02113c9c236bc32e467e8159d841c10a48",
+  "python": "3.12.16",
+  "packages": {
+    "pandas": "3.1.1",
+    "numpy": "2.5.4",
+    "xgboost": "3.4.1",
+    "statsmodels": "0.15.0",
+    "scipy": "1.18.1",
+    "sklearn": "1.9.1"
+  },
+  "runtime_seconds": 2331
+}
