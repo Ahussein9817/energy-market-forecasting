@@ -40,3 +40,10 @@ data/processed/*
 !data/processed/.gitkeep
 .coverage
 .ruff_cache/
+
+# operational service state (local; regenerate with the CLI)
+data/energy.sqlite*
+models/*
+!models/.gitkeep
+
+*.egg-info/

@@ -37,14 +37,22 @@ def nyiso_url(dataset: str, year: int, month: int) -> str:
     return f"{NYISO_BASE}/{folder}/{year:04d}{month:02d}01{dataset}_csv.zip"
 
 
+def month_is_complete(year: int, month: int, today=None) -> bool:
+    """True once the month ended at least 3 days ago (NYISO then no longer appends to its zip)."""
+    today = pd.Timestamp(today) if today is not None else pd.Timestamp.now(tz="UTC").tz_localize(None)
+    end = pd.Period(f"{year:04d}-{month:02d}", "M").end_time.normalize()
+    return today.normalize() >= end + pd.Timedelta(days=3)
+
+
 def download_month(dataset: str, year: int, month: int, cache_dir: Path,
                    retries: int = 3, backoff: float = 2.0, timeout: int = 60,
-                   session: requests.Session | None = None) -> Path:
-    """Download (or reuse from cache) one monthly zip. Raises DataError after `retries`."""
+                   session: requests.Session | None = None, today=None) -> Path:
+    """Download (or reuse from cache) one monthly zip. A cached zip is reused only for a completed
+    month; the current month is always re-fetched. Raises DataError after `retries`."""
     cache_dir.mkdir(parents=True, exist_ok=True)
     dest = cache_dir / f"{dataset}_{year:04d}{month:02d}.zip"
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest
+    if dest.exists() and dest.stat().st_size > 0 and month_is_complete(year, month, today):
+        return dest  # an incomplete (current) month is re-downloaded: NYISO updates its zip daily
     get = (session or requests).get
     last: Exception | None = None
     for attempt in range(1, retries + 1):

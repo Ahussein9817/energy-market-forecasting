@@ -1,7 +1,7 @@
 
 # Energy Market Price Forecasting Under Exogenous Shocks
 
-**Status:** Working retrospective backtest for one market. A reproducible NYISO data pipeline, a walk-forward day-ahead price backtest (naive, SARIMAX, XGBoost) and a forecast-weather experiment exist, with tests and CI. Shock/causal analysis, gas data and deep models are **not** done (see "Current state" and "Current Progress").  
+**Status:** Research backtests plus the first phase of an operational service (local only; no dashboard, monitoring, container or deployment yet). A reproducible NYISO data pipeline, a walk-forward day-ahead price backtest (naive, SARIMAX, XGBoost) and a forecast-weather experiment exist, with tests and CI. Shock/causal analysis, gas data and deep models are **not** done (see "Current Progress").  
 **Timeline:** Repository created 2025-12-22 (git history); earlier dates in the notebook and a previous README version were not backed by commits.  
 **Original goal (partly done):** Build time-series forecasting models to predict electricity price volatility and analyze the causal impact of exogenous shocks (weather extremes, geopolitical events, supply disruptions) on energy markets.
 
@@ -105,12 +105,21 @@ energy-market-forecasting/
 │   ├── forecast_models.py      # naive benchmarks, XGBoost, SARIMAX
 │   ├── forecast_weather.py     # archived day-ahead forecast temperature (Open-Meteo Previous Runs)
 │   └── evaluation.py           # metrics, Diebold-Mariano, walk-forward driver
+├── energy_service/             # operational layer (Phase 1): see docs/operational-service.md
+│   ├── ingest/                 #   incremental NYISO + Open-Meteo ingestion, validation, provenance
+│   ├── registry.py train.py forecast.py evaluate.py status.py
+│   ├── api.py schemas.py       #   read-only FastAPI
+│   ├── cli.py                  #   python -m energy_service <command>
+│   └── migrations/             #   versioned SQL schema
 ├── scripts/
 │   ├── build_dataset.py            # download and build data/processed (not committed)
 │   ├── run_backtest.py             # original backtest (about 39 minutes)
 │   ├── evaluate_predictions.py     # regenerate backtest metrics/report from committed predictions
 │   ├── run_forecast_weather.py     # forecast-weather experiment (about 15 seconds)
-│   └── evaluate_forecast_weather.py
+│   ├── evaluate_forecast_weather.py
+│   ├── run_operational_backtest.py # operational-origin backtest (about 25 seconds)
+│   ├── evaluate_operational.py     # applies the pre-registered serving rule
+│   └── probe_publication_times.py  # records when NYISO publishes (network)
 ├── results/                    # committed predictions, metrics, reports, run metadata
 ├── docs/                       # data sources, data-quality report, claim-evidence table
 ├── tests/                      # offline tests (network is mocked)
@@ -126,12 +135,16 @@ energy-market-forecasting/
 - [x] Walk-forward day-ahead backtest: naive benchmarks, SARIMAX, XGBoost, leakage tests, Diebold-Mariano
 - [x] Oracle vs forecast-weather comparison (GFS day-ahead temperature)
 - [x] Offline tests, ruff and GitHub Actions CI, including metric regeneration from committed predictions
+- [x] Operational definition (origin, legal inputs) verified from NYISO publication times; operational-origin backtest with a pre-registered serving rule
+- [x] Operational core, local: incremental idempotent ingestion with validation and provenance, SQLite store, model registry with hash check, forecast job with baseline fallback, evaluation job, read-only API
 
 ### Not done
 - [ ] Natural-gas, generation-mix and outage data (gas needs a free EIA API key)
 - [ ] Confirming identical predictions from a second full backtest run
 - [ ] LSTM, Random Forest, event/shock analysis, any causal claim
-- [ ] Docker packaging and model registry
+- [ ] Evidence from live operation: only one live forecast exists so far; no performance claim rests on live data
+- [ ] Dashboard, monitoring/alerts, scheduler configuration, Docker, authenticated admin endpoint, any hosting (planned next phase)
+- [ ] Confirmation of NYISO's current official market schedule (the 05:00 ET close is from a 2013 NYISO document)
 - [ ] NYISO data-licence review
 
 ---
@@ -181,9 +194,40 @@ What this shows and does not show:
 
 ---
 
+## Operational service (Phase 1, local)
+
+An integrated pipeline around the verified research code: **NYISO files -> validation -> SQLite -> forecast (baseline or model) -> evaluation -> read-only API**. Design, schema and failure behaviour: `docs/operational-service.md`. Forecast definition and what is known when: `docs/operational-timing.md`.
+
+```bash
+make setup
+make db-init
+python -m energy_service backfill --from 2019-01 --to 2026-10   # completed months (reuses zips in data/raw if present)
+python -m energy_service weather-backfill --start 2019-01-01 --end 2026-11-12
+python -m energy_service train --feature-set OD --activate      # activates only if the backtest evidence qualifies it
+make run-daily        # ingest, weather snapshot, forecast for tomorrow, evaluate (what a scheduler would run)
+make api              # http://127.0.0.1:8000/docs
+```
+
+What it does and does not do:
+- A forecast row records the origin, target day, model or baseline, feature version, generation time, the exact weather snapshot used, and whether it was generated after the day-ahead prices were public (`late`).
+- **The baseline is the default.** The model serves only if its backtest evidence meets the serving rule, a fresh weather forecast exists for every target hour, all features are present and the model file passes its hash check. Otherwise the baseline (yesterday's price, hour by hour) is served and the reason is stored (`no_active_model`, `weather_missing`, `weather_stale`, `load_missing`, `model_load_failed`, ...). The 23-day weather outage in the backtest data is exactly this case.
+- Ingestion is idempotent, keeps the provenance of every file (URL, server `Last-Modified`, SHA-256), rejects malformed files without touching stored data, flags missing/duplicate/out-of-range data, and records revised files (NYISO revises actual load after first posting).
+- The API is read-only: `/health`, `/ready` (503 with reasons when prices are stale), `/models`, `/forecasts/latest`, `/forecasts`. No request trains a model or generates a forecast.
+- **Not built yet:** dashboard, monitoring and alerts, a configured scheduler, Docker, an authenticated admin endpoint, hosting. This is a local, tested prototype of the operational core, not a deployed or production system, and it has no operating history: one real forecast has been generated, and a performance claim will need weeks of scheduled, non-late forecasts.
+
+---
+
 ## Key Findings
 
-None yet. Earlier versions of this README listed expected relationships (seasonality, gas-price correlation, weather effects) as preliminary findings; no code or data in this repository computed them, so they were removed. They are hypotheses to test once real data is loaded.
+Measured on one zone (NYISO N.Y.C., day-ahead price) over 2023-01-01..2024-12-30; retrospective backtests, no causal claims, not a trading result.
+
+1. **Without weather, nothing beats "same hour yesterday".** SARIMAX and XGBoost with prices, calendar and load lags do not beat it on MAE (6.03 $/MWh over 730 days).
+2. **With perfect-foresight weather, MAE falls to 5.02** (17% lower). That is an oracle, not an operational result.
+3. **With an archived day-ahead weather forecast, most of the gain remains** (end-of-day origin, 709 days): MAE 4.72 vs 5.78 for yesterday-naive; the no-weather control gets 6.14.
+4. **Every model under-forecasts price spikes** (negative bias in the top 5% of hours).
+5. **At an operational origin (05:00 ET, only information available then), one model earned the right to serve** under a rule fixed before the run: XGBoost with a 48-hour-lead weather forecast, MAE 4.84 vs 5.78 for repeating yesterday's price (709 days; 95% CI of the difference [-1.36, -0.56] $/MWh; better in both 2023 and 2024). Models without weather, and the one trained only on archived forecasts, did not meet the rule. See `results/operational_report.md`.
+
+**Important caveat on 1-3:** these backtests forecast at the *end* of day D the prices of D+1, but NYISO posts those prices at about 09:32 ET on day D. They measure predictability; they are not a forecast anyone could have made. Finding 5 uses only information available before the day-ahead market closes (see `docs/operational-timing.md`). It is still a retrospective backtest on one zone and one 2-year window with a proxy for the live weather input, not a trading result.
 
 ---
 
@@ -204,4 +248,4 @@ aminaali9816@gmail.com | [LinkedIn](https://linkedin.com/in/amina-ali-hussein) |
 
 ## License
 
-MIT License - feel free to use this code for your own research and projects.
+No licence has been chosen yet and the repository has no `LICENSE` file; until one is added, default copyright applies. (An earlier README version stated MIT, which was never backed by a file.)
