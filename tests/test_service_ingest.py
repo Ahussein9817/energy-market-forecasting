@@ -38,11 +38,12 @@ def count(conn, table):
 # ---- migrations -----------------------------------------------------------------------------
 def test_migrations_apply_once(tmp_path):
     c = db.connect(str(tmp_path / "m.sqlite"))
-    assert db.migrate(c) == [1]
+    latest = len(list(db.MIGRATIONS_DIR.glob("*.sql")))
+    assert db.migrate(c) == list(range(1, latest + 1))
     assert db.migrate(c) == []          # idempotent
-    assert db.schema_version(c) == 1
+    assert db.schema_version(c) == latest
     tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert {"raw_files", "prices_dam", "forecasts", "models", "events", "job_runs"} <= tables
+    assert {"raw_files", "prices_dam", "forecasts", "models", "events", "job_runs", "monitor_snapshots"} <= tables
 
 
 def test_iso_refuses_naive_timestamps():

@@ -31,6 +31,18 @@ class Settings:
     weather_max_age_hours: float = 12.0   # a live weather snapshot older than this is not used
     late_after_et: str = "09:30"   # forecasts generated after this ET time on day D are flagged late
     api_key: str | None = None     # admin operations; unset disables them
+    # monitoring thresholds
+    job_max_age_hours: float = 26.0        # a successful ingest must be newer than this
+    perf_min_days: int = 10                # evaluated days needed before performance is judged
+    perf_warn_ratio: float = 1.0           # served MAE / baseline MAE above this warns
+    perf_fail_ratio: float = 1.10
+    fallback_warn_rate: float = 0.5        # share of recent forecasts that fell back to the baseline
+    spike_sigma: float = 3.0               # latest-day MAE this many sigmas above the prior mean warns
+    alert_webhook: str | None = None       # optional; unset disables alert delivery
+    schedule_et: str = "05:00,09:45"       # run-daily local times (America/New_York) for the scheduler
+    log_level: str = "INFO"
+    scheduler_catchup: bool = True         # on start, run a daily flow missed while the process was down
+    admin_rate_limit_per_hour: int = 6
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> Settings:
@@ -43,7 +55,13 @@ class Settings:
                                  ("user_agent", "ENERGY_USER_AGENT", str), ("timeout", "ENERGY_HTTP_TIMEOUT", float),
                                  ("retries", "ENERGY_HTTP_RETRIES", int), ("backoff", "ENERGY_HTTP_BACKOFF", float),
                                  ("weather_max_age_hours", "ENERGY_WEATHER_MAX_AGE_HOURS", float),
-                                 ("api_key", "ENERGY_API_KEY", str)):
+                                 ("api_key", "ENERGY_API_KEY", str), ("alert_webhook", "ENERGY_ALERT_WEBHOOK", str),
+                                 ("schedule_et", "ENERGY_SCHEDULE_ET", str), ("log_level", "ENERGY_LOG_LEVEL", str),
+                                 ("job_max_age_hours", "ENERGY_JOB_MAX_AGE_HOURS", float),
+                                 ("perf_min_days", "ENERGY_PERF_MIN_DAYS", int),
+                                 ("admin_rate_limit_per_hour", "ENERGY_ADMIN_RATE_LIMIT", int),
+                                 ("scheduler_catchup", "ENERGY_SCHEDULER_CATCHUP",
+                                  lambda v: v.strip().lower() in ("1", "true", "yes"))):
             if e.get(var):
                 kw[field] = cast(e[var])
         return cls(**{**d.__dict__, **kw})

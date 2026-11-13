@@ -88,7 +88,7 @@ def test_status_and_db_init_commands(tmp_path, monkeypatch, capsys):
     s = settings(tmp_path)
     monkeypatch.setenv("ENERGY_DB_PATH", s.db_path)
     assert cli.main(["db-init"]) == 0
-    assert json.loads(capsys.readouterr().out)["schema_version"] == 1
+    assert json.loads(capsys.readouterr().out)["schema_version"] == len(list(db.MIGRATIONS_DIR.glob("*.sql")))
     monkeypatch.setattr(cli, "_now", lambda: NOW)
     assert cli.main(["status"]) == 0
     assert json.loads(capsys.readouterr().out)["readiness"]["status"] == "not_ready"      # empty database
@@ -133,3 +133,9 @@ def test_cached_fetcher_serves_local_monthly_zips_and_falls_back_to_the_network(
 def test_settings_from_env_overrides_only_what_is_set():
     s = Settings.from_env({"ENERGY_ZONE": "WEST", "ENERGY_HTTP_RETRIES": "5", "ENERGY_API_KEY": "k"})
     assert (s.zone, s.retries, s.api_key) == ("WEST", 5, "k") and s.db_path == Settings().db_path
+
+
+def test_scheduler_catchup_switch_parses_booleans():
+    assert Settings().scheduler_catchup is True
+    for v, want in (("false", False), ("0", False), ("no", False), ("TRUE", True), ("1", True)):
+        assert Settings.from_env({"ENERGY_SCHEDULER_CATCHUP": v}).scheduler_catchup is want

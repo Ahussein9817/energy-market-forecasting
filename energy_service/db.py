@@ -1,7 +1,9 @@
 """SQLite access and versioned migrations (plain SQL files, applied once, in order)."""
 from __future__ import annotations
 
+import logging
 import sqlite3
+import time as _time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -72,6 +74,7 @@ class JobRun:
         self.status = "success"
 
     def __enter__(self):
+        self._t0 = _time.perf_counter()
         cur = self.conn.execute("INSERT INTO job_runs (job, started_at, status) VALUES (?,?, 'running')",
                                 (self.job, iso(self.now)))
         self.conn.commit()
@@ -85,4 +88,7 @@ class JobRun:
                           (iso(utcnow()), status, json.dumps(self.details, default=str),
                            f"{exc_type.__name__}: {exc}" if exc_type else None, self.id))
         self.conn.commit()
+        logging.getLogger("energy.job").info("job finished", extra={"fields": {
+            "job": self.job, "status": status, "duration_s": round(_time.perf_counter() - self._t0, 2),
+            "error": f"{exc_type.__name__}: {exc}" if exc_type else None}})
         return False

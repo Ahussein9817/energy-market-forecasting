@@ -3,35 +3,44 @@ only retrieved here. No endpoint modifies state or triggers computation (an auth
 deliberately left to a later phase)."""
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import sqlite3
 import time
 import uuid
+from collections import deque
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from energy_service import __version__, db, status
+from energy_service import __version__, db, monitor, queries, status
 from energy_service.config import Settings
+from energy_service.forecast import ForecastUnavailable, generate_forecast
 from energy_service.schemas import (
+    CheckOut,
     ErrorResponse,
     EvaluationOut,
     ForecastList,
     ForecastOut,
+    GenerateOut,
+    GenerateRequest,
     HealthOut,
     HourOut,
     ModelOut,
     ModelsOut,
+    MonitoringOut,
     ReadyOut,
 )
 
 log = logging.getLogger("energy.api")
 ERR = {404: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 503: {"model": ErrorResponse}}
+ET = ZoneInfo("America/New_York")
 
 
 class ApiError(Exception):
@@ -46,9 +55,11 @@ def _err(status_code: int, code: str, message: str, details=None, headers=None) 
 
 def create_app(settings: Settings | None = None, clock: Callable[[], datetime] = db.utcnow) -> FastAPI:
     s = settings or Settings.from_env()
-    app = FastAPI(title="Electricity forecast service (read-only)", version=__version__,
-                  description="Day-ahead NYISO N.Y.C. price forecasts, their provenance and evaluation. "
+    app = FastAPI(title="Electricity forecast service", version=__version__,
+                  description="Day-ahead NYISO N.Y.C. price forecasts, their provenance and evaluation. Read endpoints change "
+                              "nothing; one key-protected admin endpoint can create a forecast. "
                               "A research/demonstration system, not trading advice.")
+    admin_calls: deque = deque()
 
     def get_conn():
         try:
@@ -71,8 +82,9 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] =
             response.headers["X-Request-ID"] = rid
             return response
         finally:
-            log.info(json.dumps({"event": "request", "request_id": rid, "method": request.method, "path": request.url.path,
-                                 "status": status_code, "duration_ms": round((time.perf_counter() - t0) * 1000, 1)}))
+            log.info("request", extra={"fields": {"event": "request", "request_id": rid, "method": request.method,
+                                                  "path": request.url.path, "status": status_code,
+                                                  "duration_ms": round((time.perf_counter() - t0) * 1000, 1)}})
 
     @app.exception_handler(ApiError)
     async def _api_error(_, e: ApiError):
@@ -161,5 +173,46 @@ def create_app(settings: Settings | None = None, clock: Callable[[], datetime] =
         if target_date and not rows:
             raise ApiError(404, "no_forecast", f"no forecast for {target_date}")
         return ForecastList(count=len(rows), forecasts=[to_forecast(conn, r, include_hours) for r in rows])
+
+    @app.get("/monitoring/summary", response_model=MonitoringOut,
+             summary="Current health checks (computed now, read-only), recent events and jobs")
+    def monitoring_summary(conn=Depends(get_conn)):
+        now = clock()
+        checks = monitor.run_checks(conn, s, now)
+        snap = conn.execute("SELECT created_at FROM monitor_snapshots ORDER BY id DESC LIMIT 1").fetchone()
+        return MonitoringOut(status=monitor.overall(checks), checked_at=now, last_snapshot_at=snap[0] if snap else None,
+                             checks=[CheckOut(**c.__dict__) for c in checks], recent_events=queries.recent_events(conn, 10),
+                             recent_jobs=queries.recent_jobs(conn, 8))
+
+    @app.post("/admin/forecasts/generate", response_model=GenerateOut, responses={**ERR, 401: {"model": ErrorResponse},
+              403: {"model": ErrorResponse}, 409: {"model": ErrorResponse}, 429: {"model": ErrorResponse}},
+              summary="Create the forecast for tomorrow (idempotent). Requires the X-API-Key header; disabled without a configured key")
+    def admin_generate(req: GenerateRequest, x_api_key: str | None = Header(default=None)):
+        if not s.api_key:
+            raise ApiError(403, "admin_disabled", "admin operations are disabled: no API key is configured")
+        if not x_api_key or not hmac.compare_digest(x_api_key.encode(), s.api_key.encode()):
+            raise ApiError(401, "unauthorized", "missing or invalid API key")
+        now = clock()
+        while admin_calls and now - admin_calls[0] > timedelta(hours=1):
+            admin_calls.popleft()
+        if len(admin_calls) >= s.admin_rate_limit_per_hour:
+            raise ApiError(429, "rate_limited", f"at most {s.admin_rate_limit_per_hour} admin calls per hour")
+        today = now.astimezone(ET).date()
+        origin = req.origin_date or today
+        if origin not in (today, today - timedelta(days=1)):
+            raise ApiError(422, "origin_out_of_range", "origin_date must be today or yesterday (America/New_York)")
+        admin_calls.append(now)
+        try:
+            conn = db.connect(s.db_path)
+        except sqlite3.Error as e:
+            raise ApiError(503, "db_unavailable", "database cannot be opened", {"error": str(e)}) from e
+        try:
+            r = generate_forecast(conn, s, origin_date=origin, now=now, force=req.force, source="manual")
+        except ForecastUnavailable as e:
+            raise ApiError(409, "forecast_unavailable", str(e)) from e
+        finally:
+            conn.close()
+        return GenerateOut(forecast_id=r.forecast_id, target_date=r.target_date, version=r.version, served_kind=r.served_kind,
+                           fallback_reason=r.fallback_reason, late=r.late, already_existed=r.existing)
 
     return app

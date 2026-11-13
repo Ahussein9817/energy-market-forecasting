@@ -185,10 +185,9 @@ def test_no_endpoint_mutates_state_or_computes(seeded):
     assert before == after
 
 
-def test_requests_are_logged_as_json(seeded, caplog):
-    import json
+def test_requests_are_logged_with_structured_fields(seeded, caplog):
     s, _ = seeded
     with caplog.at_level("INFO", logger="energy.api"):
         client(s).get("/health", headers={"X-Request-ID": "abc123"})
-    rec = json.loads(caplog.records[-1].getMessage())
+    rec = caplog.records[-1].fields
     assert rec["event"] == "request" and rec["path"] == "/health" and rec["status"] == 200 and rec["request_id"] == "abc123"
