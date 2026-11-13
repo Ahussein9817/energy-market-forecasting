@@ -20,3 +20,11 @@ jobs:
         run: python scripts/evaluate_predictions.py
       - name: Forecast-weather metrics regenerate from the committed predictions (exits 1 if they differ)
         run: python scripts/evaluate_forecast_weather.py
+      - name: Operational backtest metrics and serving decision regenerate (exits 1 if they differ)
+        run: python scripts/evaluate_operational.py
+      - name: Service smoke test (schema migrates, status runs offline)
+        env:
+          ENERGY_DB_PATH: ${{ runner.temp }}/smoke.sqlite
+        run: |
+          python -m energy_service db-init
+          python -m energy_service status

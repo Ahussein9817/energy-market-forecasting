@@ -8,4 +8,9 @@ statsmodels==0.15.0
 requests==2.34.2
 pyarrow==26.0.1
 matplotlib==3.11.2
+# serving (Phase 1 operational core)
+fastapi==0.162.5
+uvicorn==0.54.0
+pydantic==2.14.3
+joblib==1.6.0
 # notebooks only (not pinned/tested): seaborn, jupyter

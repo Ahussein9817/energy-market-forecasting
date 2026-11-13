@@ -1,0 +1,8 @@
+{
+  "rule": "eligible iff, vs the baseline on the common days: (1) 95% block-bootstrap CI of the daily MAE difference is entirely < 0, (2) Diebold-Mariano p < 0.05, (3) mean daily MAE difference < 0 in every calendar year of the test window",
+  "eligible_models": [
+    "xgb_OD_train_actual"
+  ],
+  "serving_candidate": "xgb_OD_train_actual",
+  "if_none_eligible": "serve the baseline (same hour of day D)"
+}
