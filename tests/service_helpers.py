@@ -80,50 +80,29 @@ def populate_days(site: FakeSite, start: date, end: date, load_end: date | None 
         d += timedelta(days=1)
 
 
-# ---- a deterministic synthetic world inside the database ---------------------------------------
-def build_world(conn, end: date, days: int = 150, seed: int = 0, with_load_through: date | None = None):
-    """Insert `days` of hourly prices (through `end`), load (through `with_load_through`, default end-1),
-    and observed temperature (through `end`) for the N.Y.C. zone. Price depends on hour, weekday and temperature."""
-    import numpy as np
-    rng = np.random.default_rng(seed)
-    start = end - timedelta(days=days - 1)
-    idx = pd.date_range(pd.Timestamp(start), pd.Timestamp(end) + pd.Timedelta(days=1), freq="h", tz="America/New_York",
-                        inclusive="left")
-    utc = idx.tz_convert("UTC")
-    doy = np.array([t.day_of_year for t in idx])
-    temp = 10 + 12 * np.sin((doy - 100) / 365 * 2 * np.pi) + 3 * np.sin(np.array([t.hour for t in idx]) / 24 * 2 * np.pi) \
-        + rng.normal(0, 1.5, len(idx))
-    hour = np.array([t.hour for t in idx])
-    price = 35 + 8 * np.sin(hour / 24 * 2 * np.pi - 1.5) + 2.0 * (np.array([t.day_of_week for t in idx]) < 5) \
-        + 0.9 * np.abs(temp - 18) + rng.normal(0, 1.0, len(idx))
-    load = 5500 + 120 * np.abs(temp - 18) + 600 * np.sin(hour / 24 * 2 * np.pi - 2.0) + rng.normal(0, 40, len(idx))
-    rid = conn.execute("INSERT INTO raw_files (dataset, url, granularity, sha256, bytes, fetched_at, status) "
-                       "VALUES ('dam_price','synthetic','daily','x',0,'2026-01-01T00:00:00Z','ingested')").lastrowid
-    conn.executemany("INSERT INTO prices_dam (zone, ts_utc, lbmp, raw_file_id) VALUES ('N.Y.C.',?,?,?)",
-                     [(t.strftime("%Y-%m-%dT%H:%M:%SZ"), float(p), rid) for t, p in zip(utc, price)])
-    load_end = pd.Timestamp(with_load_through or (end - timedelta(days=1))) + pd.Timedelta(days=1)
-    conn.executemany("INSERT INTO load_actual (zone, ts_utc, load_mw, raw_file_id) VALUES ('N.Y.C.',?,?,?)",
-                     [(t.strftime("%Y-%m-%dT%H:%M:%SZ"), float(v), rid) for t, v, loc in zip(utc, load, idx)
-                      if loc.tz_localize(None) < load_end])
-    sid = conn.execute("INSERT INTO weather_snapshots (kind, retrieved_at, n_hours, sha256) VALUES ('archive_actual',"
-                       "'2026-01-01T00:00:00Z',?, 'x')", (len(idx),)).lastrowid
-    conn.executemany("INSERT INTO weather_hours (snapshot_id, ts_utc, temp_c) VALUES (?,?,?)",
-                     [(sid, t.strftime("%Y-%m-%dT%H:%M:%SZ"), float(v)) for t, v in zip(utc, temp)])
-    conn.commit()
-    return {"temp": dict(zip(idx, temp)), "price": dict(zip(idx, price))}
+from energy_service.demo import add_live_snapshot, build_world  # noqa: E402,F401  (synthetic world lives in the package)
 
 
-def add_live_snapshot(conn, target: date, retrieved_at: datetime, temp=12.0, null_hours=(), base=None):
-    """Live forecast snapshot covering the local day `target` (UTC hours)."""
-    idx = pd.date_range(pd.Timestamp(target) - pd.Timedelta(days=1), pd.Timestamp(target) + pd.Timedelta(days=2),
-                        freq="h", tz="America/New_York", inclusive="left").tz_convert("UTC")
-    sid = conn.execute("INSERT INTO weather_snapshots (kind, model, retrieved_at, n_hours, sha256) VALUES "
-                       "('live_forecast','gfs_global',?,?, 'x')", (retrieved_at.strftime("%Y-%m-%dT%H:%M:%SZ"), len(idx))).lastrowid
-    local_hours = idx.tz_convert("America/New_York")
-    rows = []
-    for t, lt in zip(idx, local_hours):
-        v = None if (lt.date() == target and lt.hour in null_hours) else float(temp)
-        rows.append((sid, t.strftime("%Y-%m-%dT%H:%M:%SZ"), v))
-    conn.executemany("INSERT INTO weather_hours (snapshot_id, ts_utc, temp_c) VALUES (?,?,?)", rows)
+def seed_evaluated(conn, end: date, days: int, served_mae=3.0, baseline_mae=5.0, kind="model", late=0, source="scheduled",
+                   fallback=None, start_id=1000, version=1):
+    """Insert `days` evaluated forecasts (target dates end-days+1 .. end) with controlled errors, bypassing the jobs.
+    Hour-level rows are consistent with the stored MAEs (constant absolute error)."""
+    import json as _json
+    for k in range(days):
+        t = end - timedelta(days=days - 1 - k)
+        fid = start_id + k + (0 if source != "replay" else 5000)
+        actual = [40.0 + h for h in range(24)]
+        sv = [a + served_mae for a in actual]
+        bv = [a + baseline_mae for a in actual]
+        conn.execute("INSERT INTO forecasts (id, origin_date, target_date, version, origin_ts, generated_at, source, served_kind, "
+                     "served_model_id, fallback_reason, late, input_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                     (fid, str(t - timedelta(days=1)), str(t), version, "x", "2026-01-01T00:00:00Z", source, kind, None, fallback, late,
+                      _json.dumps({})))
+        conn.executemany("INSERT INTO forecast_hours (forecast_id, hour, baseline, model, served) VALUES (?,?,?,?,?)",
+                         [(fid, h, bv[h], sv[h] if kind == "model" else None, sv[h] if kind == "model" else bv[h]) for h in range(24)])
+        conn.executemany("INSERT INTO evaluation_hours (forecast_id, hour, actual) VALUES (?,?,?)", [(fid, h, actual[h]) for h in range(24)])
+        ms = served_mae if kind == "model" else baseline_mae
+        conn.execute("INSERT INTO evaluations (forecast_id, evaluated_at, target_date, mae_served, mae_baseline, mae_model, bias_served) "
+                     "VALUES (?,?,?,?,?,?,?)", (fid, "2026-01-02T00:00:00Z", str(t), ms, baseline_mae,
+                                                served_mae if kind == "model" else None, ms if kind == "model" else baseline_mae))
     conn.commit()
-    return sid

@@ -90,3 +90,34 @@ class ReadyOut(BaseModel):
     active_model: str | None = None
     forecast_for_tomorrow: dict | None = None
     checked_at: str
+
+
+class CheckOut(BaseModel):
+    name: str
+    status: Literal["ok", "warn", "fail", "unknown"]
+    message: str
+    value: dict | None = None
+
+
+class MonitoringOut(BaseModel):
+    status: Literal["ok", "warn", "fail", "unknown"]
+    checked_at: datetime
+    last_snapshot_at: str | None
+    checks: list[CheckOut]
+    recent_events: list[dict]
+    recent_jobs: list[dict]
+
+
+class GenerateRequest(BaseModel):
+    origin_date: date | None = Field(default=None, description="defaults to today (America/New_York); only today or yesterday allowed")
+    force: bool = Field(default=False, description="create a new version even if a forecast for the target day exists")
+
+
+class GenerateOut(BaseModel):
+    forecast_id: int
+    target_date: date
+    version: int
+    served_kind: Literal["model", "baseline"]
+    fallback_reason: str | None
+    late: bool
+    already_existed: bool

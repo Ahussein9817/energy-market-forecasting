@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import sys
 from datetime import date, datetime
@@ -11,7 +12,19 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from energy_service import db, evaluate, forecast, registry, status, train
+from energy_service import (
+    backup,
+    daily,
+    db,
+    evaluate,
+    forecast,
+    logging_setup,
+    monitor,
+    registry,
+    scheduler,
+    status,
+    train,
+)
 from energy_service.config import Settings
 from energy_service.dataset import DataIncomplete
 from energy_service.http import Fetched, get_bytes
@@ -55,24 +68,35 @@ def _today_et(now: datetime) -> date:
 
 
 def cmd_run_daily(conn, s: Settings, args) -> int:
-    """ingest -> weather snapshot -> forecast for tomorrow -> evaluate. Each step is isolated; the exit code
-    is non-zero if no forecast could be produced."""
-    now, fetch = _now(), make_fetcher(s)
-    summary: dict = {}
-    summary["ingest"] = nyiso.run_ingest(conn, s, now=now, fetch=fetch, lookback_days=args.lookback_days)
-    sid = weather.snapshot_live_forecast(conn, s, now=now, fetch=fetch)
-    summary["weather_snapshot"] = sid
-    code = 0
-    try:
-        r = forecast.generate_forecast(conn, s, origin_date=_today_et(now), now=now, source="scheduled")
-        summary["forecast"] = {"target_date": r.target_date, "served": r.served_kind, "fallback_reason": r.fallback_reason,
-                               "late": r.late, "already_existed": r.existing}
-    except forecast.ForecastUnavailable as e:
-        summary["forecast"] = {"error": str(e)}
-        code = 2
-    summary["evaluate"] = evaluate.evaluate_pending(conn, s, now=now)
+    summary, code = daily.run_daily(conn, s, now=_now(), fetch=make_fetcher(s), lookback_days=args.lookback_days)
     print(json.dumps(summary, indent=2, default=str))
     return code
+
+
+def cmd_schedule(s: Settings) -> int:
+    """Long-running scheduler: run_daily at the configured ET times, with catch-up after downtime."""
+    times = scheduler.parse_times(s.schedule_et)
+    hb = str(Path(s.db_path).parent / "scheduler.heartbeat")
+
+    def job(now) -> bool:
+        conn = db.connect(s.db_path)
+        try:
+            db.migrate(conn)
+            _, code = daily.run_daily(conn, s, now=now, fetch=make_fetcher(s))
+            return code == 0
+        finally:
+            conn.close()
+
+    conn = db.connect(s.db_path)
+    db.migrate(conn)
+    row = conn.execute("SELECT finished_at FROM job_runs WHERE job='run_daily' AND status='success' ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    last = datetime.fromisoformat(row[0].replace("Z", "+00:00")) if row else None
+    if not s.scheduler_catchup:
+        last = _now()          # pretend we just ran: wait for the next scheduled time instead of catching up
+    logging.getLogger("energy.scheduler").info("scheduler started", extra={"fields": {"times_et": s.schedule_et}})
+    scheduler.run_forever(job, times, clock=_now, last_success=last, heartbeat_path=hb)
+    return 0
 
 
 def main(argv=None) -> int:
@@ -99,22 +123,40 @@ def main(argv=None) -> int:
     f.add_argument("--source", default="manual")
     sub.add_parser("evaluate", help="score forecasts whose actual prices are published")
     sub.add_parser("status", help="readiness and recent jobs")
-    d = sub.add_parser("run-daily", help="ingest, snapshot weather, forecast, evaluate (the scheduled job)")
+    sub.add_parser("demo-seed", help="load SYNTHETIC demo data into an empty database (never real data)")
+    sub.add_parser("monitor", help="run health checks, store a snapshot, emit events/alerts for changes")
+    sub.add_parser("schedule", help="long-running scheduler (run-daily at ENERGY_SCHEDULE_ET, with catch-up)")
+    bk = sub.add_parser("backup", help="consistent, verified copy of the database")
+    bk.add_argument("--out", required=True)
+    rs = sub.add_parser("restore", help="restore a verified backup (refuses to overwrite without --force)")
+    rs.add_argument("--from", dest="src", required=True)
+    rs.add_argument("--force", action="store_true")
+    d = sub.add_parser("run-daily", help="ingest, snapshot weather, forecast, evaluate, monitor (the scheduled job)")
     d.add_argument("--lookback-days", type=int, default=3)
     sv = sub.add_parser("serve", help="run the read-only API")
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8000)
     args = p.parse_args(argv)
     s = Settings.from_env()
+    logging_setup.configure(s.log_level, secrets=(s.api_key or "", s.alert_webhook or ""))
 
     if args.cmd == "serve":
-        import logging
-
         import uvicorn
 
         from energy_service.api import create_app
-        logging.basicConfig(level=logging.INFO, format="%(message)s")   # one JSON object per request on stdout/stderr
         uvicorn.run(create_app(s), host=args.host, port=args.port, log_config=None)
+        return 0
+    if args.cmd == "schedule":
+        return cmd_schedule(s)
+    if args.cmd == "backup":
+        print(json.dumps(backup.backup(s.db_path, args.out), indent=2))
+        return 0
+    if args.cmd == "restore":
+        try:
+            print(json.dumps(backup.restore(args.src, s.db_path, force=args.force), indent=2))
+        except (FileExistsError, ValueError) as e:
+            print(json.dumps({"error": str(e)}))
+            return 2
         return 0
     conn = db.connect(s.db_path)
     try:
@@ -166,6 +208,17 @@ def main(argv=None) -> int:
             print(json.dumps(evaluate.evaluate_pending(conn, s, now=now)))
         elif args.cmd == "status":
             print(json.dumps({"readiness": status.readiness(conn, s, now), "recent_jobs": status.recent_jobs(conn)}, indent=2))
+        elif args.cmd == "demo-seed":
+            from energy_service import demo
+            try:
+                print(json.dumps(demo.seed_demo(conn, s, now)))
+            except RuntimeError as e:
+                print(json.dumps({"error": str(e)}))
+                return 2
+        elif args.cmd == "monitor":
+            out = monitor.run_monitor(conn, s, now)
+            print(json.dumps({"status": out["status"], "transitions": out["transitions"], "alerts_sent": out["alerts_sent"],
+                              "checks": [{k: c[k] for k in ("name", "status", "message")} for c in out["checks"]]}, indent=2))
         elif args.cmd == "run-daily":
             return cmd_run_daily(conn, s, args)
         return 0

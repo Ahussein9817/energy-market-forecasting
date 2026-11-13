@@ -1,0 +1,70 @@
+# Local, containerised run of the whole service. Binds to localhost only. Not a hosted deployment.
+#   cp .env.example .env            # optional: set ENERGY_API_KEY to enable the admin endpoint
+#   docker compose up -d --build --wait
+#   docker compose run --rm api python -m energy_service demo-seed     # SYNTHETIC data, or load real history (see docs/RUNBOOK.md)
+#   python scripts/verify_deployment.py --api-url http://localhost:8000 --dashboard-url http://localhost:8501
+name: energy-forecast
+
+x-app: &app
+  build: .
+  image: energy-forecast:local
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  environment:
+    ENERGY_DB_PATH: /data/energy.sqlite
+    ENERGY_MODEL_DIR: /data/models
+    ENERGY_API_KEY: ${ENERGY_API_KEY:-}
+    ENERGY_ALERT_WEBHOOK: ${ENERGY_ALERT_WEBHOOK:-}
+    ENERGY_LOG_LEVEL: ${ENERGY_LOG_LEVEL:-INFO}
+    ENERGY_SCHEDULE_ET: ${ENERGY_SCHEDULE_ET:-05:00,09:45}
+    ENERGY_SCHEDULER_CATCHUP: ${ENERGY_SCHEDULER_CATCHUP:-true}
+  volumes:
+    - energy-data:/data
+
+services:
+  init:                       # creates/migrates the database, then exits
+    <<: *app
+    restart: "no"
+    command: ["python", "-m", "energy_service", "db-init"]
+
+  api:
+    <<: *app
+    command: ["python", "-m", "energy_service", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  dashboard:
+    <<: *app
+    command: ["streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    ports: ["127.0.0.1:8501:8501"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  scheduler:                  # runs the daily flow at ENERGY_SCHEDULE_ET (America/New_York), catches up after downtime
+    <<: *app
+    command: ["python", "-m", "energy_service", "schedule"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck:              # the loop writes a heartbeat every 30 s
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/data/scheduler.heartbeat')<120 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  energy-data:

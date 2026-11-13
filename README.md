@@ -1,7 +1,7 @@
 
 # Energy Market Price Forecasting Under Exogenous Shocks
 
-**Status:** Research backtests plus the first phase of an operational service (local only; no dashboard, monitoring, container or deployment yet). A reproducible NYISO data pipeline, a walk-forward day-ahead price backtest (naive, SARIMAX, XGBoost) and a forecast-weather experiment exist, with tests and CI. Shock/causal analysis, gas data and deep models are **not** done (see "Current Progress").  
+**Status:** Research backtests plus a production-style application that runs locally: scheduled ingestion and forecasting with a baseline fallback, monitoring, a read-only API with one key-protected admin endpoint, a dashboard, and Docker Compose files. Not deployed or hosted; no operating history. A reproducible NYISO data pipeline, a walk-forward day-ahead price backtest (naive, SARIMAX, XGBoost) and a forecast-weather experiment exist, with tests and CI. Shock/causal analysis, gas data and deep models are **not** done (see "Current Progress").  
 **Timeline:** Repository created 2025-12-22 (git history); earlier dates in the notebook and a previous README version were not backed by commits.  
 **Original goal (partly done):** Build time-series forecasting models to predict electricity price volatility and analyze the causal impact of exogenous shocks (weather extremes, geopolitical events, supply disruptions) on energy markets.
 
@@ -107,10 +107,13 @@ energy-market-forecasting/
 │   └── evaluation.py           # metrics, Diebold-Mariano, walk-forward driver
 ├── energy_service/             # operational layer (Phase 1): see docs/operational-service.md
 │   ├── ingest/                 #   incremental NYISO + Open-Meteo ingestion, validation, provenance
-│   ├── registry.py train.py forecast.py evaluate.py status.py
-│   ├── api.py schemas.py       #   read-only FastAPI
+│   ├── registry.py train.py forecast.py evaluate.py monitor.py status.py queries.py daily.py
+│   ├── scheduler.py backup.py logging_setup.py demo.py
+│   ├── api.py schemas.py       #   FastAPI (read-only + one key-protected admin endpoint)
 │   ├── cli.py                  #   python -m energy_service <command>
 │   └── migrations/             #   versioned SQL schema
+├── dashboard/app.py            # Streamlit analyst dashboard
+├── Dockerfile compose.yaml     # local containerised run (CI builds and verifies it)
 ├── scripts/
 │   ├── build_dataset.py            # download and build data/processed (not committed)
 │   ├── run_backtest.py             # original backtest (about 39 minutes)
@@ -119,7 +122,9 @@ energy-market-forecasting/
 │   ├── evaluate_forecast_weather.py
 │   ├── run_operational_backtest.py # operational-origin backtest (about 25 seconds)
 │   ├── evaluate_operational.py     # applies the pre-registered serving rule
-│   └── probe_publication_times.py  # records when NYISO publishes (network)
+│   ├── probe_publication_times.py  # records when NYISO publishes (network)
+│   ├── verify_deployment.py        # post-deployment smoke test
+│   └── check_secrets.py            # CI secret scan
 ├── results/                    # committed predictions, metrics, reports, run metadata
 ├── docs/                       # data sources, data-quality report, claim-evidence table
 ├── tests/                      # offline tests (network is mocked)
@@ -136,14 +141,15 @@ energy-market-forecasting/
 - [x] Oracle vs forecast-weather comparison (GFS day-ahead temperature)
 - [x] Offline tests, ruff and GitHub Actions CI, including metric regeneration from committed predictions
 - [x] Operational definition (origin, legal inputs) verified from NYISO publication times; operational-origin backtest with a pre-registered serving rule
-- [x] Operational core, local: incremental idempotent ingestion with validation and provenance, SQLite store, model registry with hash check, forecast job with baseline fallback, evaluation job, read-only API
+- [x] Operational core: incremental idempotent ingestion with validation and provenance, SQLite store, model registry with hash check, forecast job with baseline fallback, evaluation job
+- [x] Production-style layer (local): monitoring with events and alerts, read-only API plus a key-protected admin endpoint, dashboard, scheduler, backup/restore, structured logs, Docker Compose, CI jobs, runbook
 
 ### Not done
 - [ ] Natural-gas, generation-mix and outage data (gas needs a free EIA API key)
 - [ ] Confirming identical predictions from a second full backtest run
 - [ ] LSTM, Random Forest, event/shock analysis, any causal claim
 - [ ] Evidence from live operation: only one live forecast exists so far; no performance claim rests on live data
-- [ ] Dashboard, monitoring/alerts, scheduler configuration, Docker, authenticated admin endpoint, any hosting (planned next phase)
+- [ ] Any hosted deployment (evaluated in the roadmap, not approved), TLS/authentication for non-local use, automatic retraining
 - [ ] Confirmation of NYISO's current official market schedule (the 05:00 ET close is from a 2013 NYISO document)
 - [ ] NYISO data-licence review
 
@@ -194,26 +200,30 @@ What this shows and does not show:
 
 ---
 
-## Operational service (Phase 1, local)
+## Operational service (runs locally)
 
-An integrated pipeline around the verified research code: **NYISO files -> validation -> SQLite -> forecast (baseline or model) -> evaluation -> read-only API**. Design, schema and failure behaviour: `docs/operational-service.md`. Forecast definition and what is known when: `docs/operational-timing.md`.
+An integrated pipeline around the verified research code: **NYISO files -> validation -> SQLite -> forecast (baseline or model) -> evaluation -> monitoring -> API and dashboard**. Design and failure behaviour: `docs/operational-service.md`; operating it: `docs/RUNBOOK.md`; forecast definition and what is known when: `docs/operational-timing.md`.
 
 ```bash
 make setup
-make db-init
-python -m energy_service backfill --from 2019-01 --to 2026-10   # completed months (reuses zips in data/raw if present)
+python -m energy_service db-init
+python -m energy_service backfill --from 2019-01 --to 2026-10      # completed months (reuses zips in data/raw if present)
 python -m energy_service weather-backfill --start 2019-01-01 --end 2026-11-12
-python -m energy_service train --feature-set OD --activate      # activates only if the backtest evidence qualifies it
-make run-daily        # ingest, weather snapshot, forecast for tomorrow, evaluate (what a scheduler would run)
-make api              # http://127.0.0.1:8000/docs
+python -m energy_service train --feature-set OD --activate         # activates only if the backtest evidence qualifies it
+make run-daily                    # ingest, weather snapshot, forecast for tomorrow, evaluate, monitor
+python -m energy_service serve    # API  http://127.0.0.1:8000/docs
+streamlit run dashboard/app.py    # UI   http://127.0.0.1:8501
+docker compose up -d --build --wait && python scripts/verify_deployment.py --api-url http://localhost:8000
 ```
 
 What it does and does not do:
-- A forecast row records the origin, target day, model or baseline, feature version, generation time, the exact weather snapshot used, and whether it was generated after the day-ahead prices were public (`late`).
-- **The baseline is the default.** The model serves only if its backtest evidence meets the serving rule, a fresh weather forecast exists for every target hour, all features are present and the model file passes its hash check. Otherwise the baseline (yesterday's price, hour by hour) is served and the reason is stored (`no_active_model`, `weather_missing`, `weather_stale`, `load_missing`, `model_load_failed`, ...). The 23-day weather outage in the backtest data is exactly this case.
-- Ingestion is idempotent, keeps the provenance of every file (URL, server `Last-Modified`, SHA-256), rejects malformed files without touching stored data, flags missing/duplicate/out-of-range data, and records revised files (NYISO revises actual load after first posting).
-- The API is read-only: `/health`, `/ready` (503 with reasons when prices are stale), `/models`, `/forecasts/latest`, `/forecasts`. No request trains a model or generates a forecast.
-- **Not built yet:** dashboard, monitoring and alerts, a configured scheduler, Docker, an authenticated admin endpoint, hosting. This is a local, tested prototype of the operational core, not a deployed or production system, and it has no operating history: one real forecast has been generated, and a performance claim will need weeks of scheduled, non-late forecasts.
+- **Baseline first.** A forecast stores the origin, target day, model or baseline, feature version, generation time, the exact weather snapshot used, and whether it was generated after the day-ahead prices were public (`late`). The model serves only if its backtest evidence meets the serving rule, a fresh weather forecast covers every target hour, all features are present and the model file passes its hash check. Otherwise the baseline (yesterday's price, hour by hour) is served and the reason is stored.
+- **Ingestion** is idempotent, keeps the provenance of every file (URL, server `Last-Modified`, SHA-256), rejects malformed files without touching stored data, flags missing, duplicate and out-of-range data, and records revised files.
+- **Monitoring** checks data freshness, job health, forecast availability, fallback rate, model integrity, and (once at least 10 non-late days are scored) performance against the baseline and error spikes; changes become events and, if configured, webhook alerts. A price-drift (PSI) check was tried on real data and rejected as uninformative (see the runbook).
+- **API:** `/health`, `/ready` (503 with reasons when prices are stale), `/models`, `/forecasts/latest`, `/forecasts`, `/monitoring/summary` change nothing. `POST /admin/forecasts/generate` creates a forecast, is disabled unless `ENERGY_API_KEY` is set, needs the `X-API-Key` header, is rate-limited, and accepts only today or yesterday as origin. No request trains a model.
+- **Dashboard** (Streamlit, read-only): tomorrow's forecast with provenance and fallback/late banners; baseline vs model performance, error by hour and over time, price spikes (with a warning when fewer than 10 days are scored); data health and recent jobs; and a per-day investigation view.
+- **Operations:** a scheduler (05:00 and 09:45 ET, DST-safe, with catch-up after downtime), backup/restore, JSON logs with secret redaction, a deployment verification script, and CI jobs for tests, regeneration, secrets, dependency audit and a Docker build-and-verify.
+- **Limits:** one live forecast has been scored (n=1), so there is **no live performance claim**; the Docker files are verified by the CI `docker` job (build, health checks, verification script) but have not been run on the author's own machine; ports are local-only with no TLS or read authentication; no hosted deployment; one zone and a short operating history. It is not a production system.
 
 ---
 
